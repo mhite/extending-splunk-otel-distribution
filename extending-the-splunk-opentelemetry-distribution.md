@@ -1,32 +1,63 @@
 # Extending the Splunk OpenTelemetry distribution
 
-The [Splunk OpenTelemetry Collector](https://github.com/signalfx/splunk-otel-collector) is a distribution of the [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector). In addition to supporting normal OpenTelemetry collector upstream use cases, the Splunk distribution exists to support Splunk-specific use cases such as HTTP Endpoint Collector (HEC) and Splunk Infrastructure Monitoring ingest APIs. In short, it provides a unified way for our customers to receive, process, and export metric, trace, and log data to Splunk Cloud and Splunk Observability products. 
+The [Splunk OpenTelemetry Collector](https://github.com/signalfx/splunk-otel-collector) is a distribution of the [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector) built to provide a unified way for our customers to receive, process, and export metric, trace, and log data to Splunk Cloud and Splunk Observability products. While Splunk provides support for a wide variety of OpenTelemetry components, unusual use cases or newer and less stable components aren't enabled by default in our distribution. If you find yourself wanting to experiment with an unsupported use case, extending the Splunk distribution is relatively straightforward even for someone without an extensive development background.
 
-Because Splunk provides support for our distribution, the receivers, processors, and exporters that come bundled and enabled are generally tailored around our own customer use cases and our ability to support them. While Splunk provides support for a wide variety of OpenTelemetry components, unusual use cases or newer and less stable components aren't enabled by default in our distribution.
+In this article, I'll walk you through how I "scratched my own" itch in my role as a Google Cloud partner engineer by extending the Splunk OpenTelemetry collector to include support for sending Google Cloud log messages from a Pub/Sub subscription to a Splunk HTTP Endpoint Collector (HEC). Specifically, I will cover the following steps:
 
-If you'd like to experiment in a non-production environment, the opportunity for you to extend the Splunk OpenTelemetry distribution is straight forward and relatively non-intimidating even for someone without an extensive development background. In this blog, I'll walk you through how I "scratched my own" itch in my role as a Google Cloud partner engineer and extended the Splunk OpenTelemetry collector to include support for Google Cloud Pub/Sub. You'll learn:
+- Configuring a Google Cloud log sink to publish audit log messages to a Pub/Sub topic
+- Creating a Pub/Sub subscription to the aforementioned Pub/Sub topic
+- Creating a service account with subscriber permission to the aforementioned subscriber
+- Exporting a JSON service account key for use with the OpenTelemetry Pub/Sub receiver
+- Creating a Splunk index for Google Cloud log messages
+- Creating a HEC token for use with the OpenTelemetry HEC exporter
+- Customizing the Splunk OpenTelemetry source code to include support for the `googlecloudpubsubreceiver` and `logstransformprocessor` components
+- Compiling and building a custom binary
+- Building an rpm or deb package
+- Configuring the agent to receive Google Cloud log messages via Pub/Sub and deliver them to Splunk as HEC messages
 
-- How to set up a minimal development environment
-- How to customize the source code to include the Pub/Sub receiver
-- How to compile and build a custom binary
-- How to configure the agent to receive Google Cloud log messages via Pub/Sub and deliver them to Splunk as HEC messages
+## Caveats
 
-Please note that the use case I will describe and implement in this article isn't Splunk supported -- only the official Splunk OpenTelemetry distribution is supported. Also, be aware that custom distributions can also be built with the [OpenTelemetry Collector Builder](https://github.com/open-telemetry/opentelemetry-collector/tree/main/cmd/builder). Splunk has not yet migrated to using the builder and the process won't be covered here.
+- This is an experimental approach and should not be used in a production environment. **You will not receive support from Splunk or Google Cloud.**
+- Custom distributions can also be built with the [OpenTelemetry Collector Builder](https://github.com/open-telemetry/opentelemetry-collector/tree/main/cmd/builder). Splunk has not yet migrated to using the builder and the process won't be covered here.
 
 ## Prerequisites
 
 * You aren't afraid of the CLI
 * You aren't afraid to compile your own code.
 * A working [Go development environment](https://go.dev/doc/install).
-* A Google Cloud log sink along with a corresponding Pub/Sub topic and subscription configured
-* A Google Cloud service account exported JSON key with permission to subscribe to the aforementioned subscription
 * [Optional] Docker or podman installed.
 
-## Preparing the source
+## Setup
+
+### Google Cloud
+
+#### Create a service account
+
+```
+$ gcloud iam service-accounts create otel-test
+Created service account [otel-test].
+```
+
+#### Bind role to service account
+
+TBD
+
+#### Export JSON key
+
+```
+$ gcloud iam service-accounts keys create gcp.json --iam-account=otel-test@otel-test.iam.gserviceaccount.com
+created key [34e6eb6a8f34c1975541f28466365a9705441ddf] of type [json] as [gcp.json] for [otel-test@otel-test.iam.gserviceaccount.com]
+```
+
+### Splunk
+
+## Build
+
+### Preparing the source
 
 The basic steps for preparing the source code are as follows:
 
-- Clone the Splunk OpenTelemetry Distribution from Github
+- Clone the Splunk OpenTelemetry distribution from Github
 - Add new components to the import in `internal/components/components.go`
 - Add new components to `Get` function in `internal/components/components.go`
 - Update tests by adding components to `TestDefaultComponents` function in `internal/components/components_test.go`
@@ -47,7 +78,7 @@ Resolving deltas: 100% (6990/6990), done.
 
 ### Install tools
 
-The `Makefile` included with Splunk's OpenTelemetry Distribution includes a target which installs prerequisite build tooling. Make sure you run this command to prepare your local development environment.
+The `Makefile` included with Splunk's OpenTelemetry distribution includes a target which installs prerequisite build tooling. Make sure you run this command to prepare your local development environment.
 
 ```
 $ make install-tools
@@ -65,7 +96,7 @@ go install github.com/tcnksm/ghr@v0.14.0
 go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest
 ```
 
-### Edit necessary files
+### Edit source
 
 For the purposes of this exercise, I'm going to create a simple pipeline which leverages my new Pub/Sub receiver and transforms them into Splunk HEC log messages. Because the Pub/Sub receiver and the `logstransform` processor are not enabled by default with the Splunk distribution, I will need to enable the components in the source code and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes made.
 
@@ -113,6 +144,7 @@ index 398ba46..40ab407 100644
 
 The following is a diff demonstrating the changes made to `internal/components/components_test.go`:
 
+
 ```
 diff --git a/internal/components/components_test.go b/internal/components/components_test.go
 index c7ee470..df10571 100644
@@ -137,7 +169,7 @@ index c7ee470..df10571 100644
 ```
 
 
-### Get new dependencies
+### Get dependencies
 
 Before compiling, retrieve the new dependencies for the `googlecloudpubsubreceiver` and `logstransformprocessor` components.
 
@@ -233,6 +265,31 @@ GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_windows_amd64.e
 ln -sf migratecheckpoint_windows_amd64.exe ./bin/migratecheckpoint
 ```
 
+After the build process is done, you will find the binary builds in the `bin/` directory.
+
+```
+ls -alh bin                                                                                                                                                                                                           total 1397312
+drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
+drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
+lrwxr-xr-x   1 mhite  staff    29B Jun 22 14:12 migratecheckpoint -> migratecheckpoint_linux_amd64
+-rwxr-xr-x   1 mhite  staff   2.9M Jun 22 13:12 migratecheckpoint_darwin_amd64
+-rwxr-xr-x   1 mhite  staff   3.0M Jun 22 14:12 migratecheckpoint_linux_amd64
+-rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:17 migratecheckpoint_linux_arm64
+-rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:19 migratecheckpoint_windows_amd64.exe
+lrwxr-xr-x   1 mhite  staff    19B Jun 22 14:12 otelcol -> otelcol_linux_amd64
+-rwxr-xr-x   1 mhite  staff   164M Jun 22 13:12 otelcol_darwin_amd64
+-rwxr-xr-x   1 mhite  staff   166M Jun 22 14:12 otelcol_linux_amd64
+-rwxr-xr-x   1 mhite  staff   162M Jun 22 13:17 otelcol_linux_arm64
+-rwxr-xr-x   1 mhite  staff   166M Jun 22 13:19 otelcol_windows_amd64.exe
+lrwxr-xr-x   1 mhite  staff    24B Jun 22 14:12 translatesfx -> translatesfx_linux_amd64
+-rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:12 translatesfx_darwin_amd64
+-rwxr-xr-x   1 mhite  staff   3.1M Jun 22 14:12 translatesfx_linux_amd64
+-rwxr-xr-x   1 mhite  staff   3.1M Jun 22 13:17 translatesfx_linux_arm64
+-rwxr-xr-x   1 mhite  staff   3.2M Jun 22 13:19 translatesfx_windows_amd64.exe
+```
+
+### Build operating system packages [Optional]
+
 The `Makefile` also provides capabilities to generate rpm packages for installation on a Red Hat or CentOS system. Note for this to work you must also have Docker installed.
 
 ```
@@ -293,30 +350,7 @@ drwxr-xr-x  26 mhite  staff        832 Jun 22 14:12 ..
 -rw-------@  1 mhite  staff  226641502 Jun 22 14:13 splunk-otel-collector_0.53.1-4-g5729a1e_amd64.deb
 ```
 
-Similarly, you will find the binary builds in the `bin/` directory.
-
-```
-ls -alh bin                                                                                                                                                                                                           total 1397312
-drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
-drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
-lrwxr-xr-x   1 mhite  staff    29B Jun 22 14:12 migratecheckpoint -> migratecheckpoint_linux_amd64
--rwxr-xr-x   1 mhite  staff   2.9M Jun 22 13:12 migratecheckpoint_darwin_amd64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 14:12 migratecheckpoint_linux_amd64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:17 migratecheckpoint_linux_arm64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:19 migratecheckpoint_windows_amd64.exe
-lrwxr-xr-x   1 mhite  staff    19B Jun 22 14:12 otelcol -> otelcol_linux_amd64
--rwxr-xr-x   1 mhite  staff   164M Jun 22 13:12 otelcol_darwin_amd64
--rwxr-xr-x   1 mhite  staff   166M Jun 22 14:12 otelcol_linux_amd64
--rwxr-xr-x   1 mhite  staff   162M Jun 22 13:17 otelcol_linux_arm64
--rwxr-xr-x   1 mhite  staff   166M Jun 22 13:19 otelcol_windows_amd64.exe
-lrwxr-xr-x   1 mhite  staff    24B Jun 22 14:12 translatesfx -> translatesfx_linux_amd64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:12 translatesfx_darwin_amd64
--rwxr-xr-x   1 mhite  staff   3.1M Jun 22 14:12 translatesfx_linux_amd64
--rwxr-xr-x   1 mhite  staff   3.1M Jun 22 13:17 translatesfx_linux_arm64
--rwxr-xr-x   1 mhite  staff   3.2M Jun 22 13:19 translatesfx_windows_amd64.exe
-```
-
-### Create a configuration file
+## Configure
 
 Next, let's create a configuration file which exercises the new components. Our configuration will handle the following tasks:
 
@@ -324,8 +358,10 @@ Next, let's create a configuration file which exercises the new components. Our 
 - Using the `resourcedetection` processor, the agent hostname is detected. Messages delivered to HEC via this agent will have their `host` metadata attribute set to the local hostname of the agent machine.
 - Using the `logtransformer` processor, the Pub/Sub transported Google Cloud log message is parsed as JSON and the timestamp is extracted.
 - The `googlecloudpubsub` receiver is configured to pull messages from a subscription that receives Google Cloud log messages.
-- The `splunk_hec` exported is configure to deliver messages to a Splunk HEC endpoint.
+- The `splunk_hec` exporter is configured to deliver messages to a Splunk HEC endpoint.
 - Finally, a log pipeline is constructed using the aforementioned components.
+
+Save the following configuration file using the name `pubsub-otel.yaml`:
 
 
 ```
@@ -395,13 +431,17 @@ service:
 
 ```
 
+## Test
+
+You are now ready to test and verify.
+
 ### Export environment variables
 
 Since our configuration file references multiple environment variables, we'll need to declare them in our shell environment for the purposes of our prototype.
 
 These environment variables are described below:
 
-- `SPLUNK_HEC_TOKEN` - Splunk HEC token, ie. `97c79685-c5f2-402a-be39-7a13460fbced`
+- `SPLUNK_HEC_TOKEN` - Splunk HEC token
 - `SPLUNK_HEC_URL` - URL path to the Splunk HEC endpoint, ie. https://mysplunkhec.com:8088/
 - `SPLUNK_INDEX` - Splunk index name to store log messages
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to GCP service account JSON credential
@@ -412,16 +452,78 @@ Export each of them before launching the OpenTelemetry agent.
 
 ```
 $ export SPLUNK_HEC_URL="https://mysplunkhec.com:8088"
-$ export SPLUNK_HEC_TOKEN="97c79685-c5f2-402a-be39-7a13460fbced"      
+$ export SPLUNK_HEC_TOKEN="your-hec-token"      
 $ export SPLUNK_INDEX="oteltest"                                                                                                                               
 $ export GOOGLE_APPLICATION_CREDENTIALS="/Users/mhite/repo/blog/custom-agent/splunk-otel-collector/gcp.json" 
 $ export GOOGLE_PROJECT="your-project-name"
 $ export GOOGLE_SUBSCRIPTION="projects/your-project-name/subscriptions/your-log-subscription-name"
 ```
 
-### Test it
+### Launch agent
 
-All that's left is for you to fire up new agent and point it at your configuration file. With a little luck, you'll see see your log sink exported Google Cloud logs in Splunk!
+Launch your newly compiled agent, making sure to point to the correct platform binary, using the following command:
+
+```
+$ ./bin/otelcol_darwin_amd64 --config=./pubsub-otel.yaml
+```
+
+Output should resemble:
+
+```
+2022/06/28 12:42:53 main.go:223: Set config to [./pubsub-otel.yaml]
+2022/06/28 12:42:53 main.go:289: Set ballast to 168 MiB
+2022/06/28 12:42:53 main.go:303: Set memory limit to 460 MiB
+2022-06-28T12:42:53.207-0700	warn	splunkhecexporter@v0.53.0/exporter.go:77	otel_to_hec_fields.name setting is deprecated and will be removed soon.	{"kind": "exporter", "data_type": "logs", "name": "splunk_hec"}
+2022-06-28T12:42:53.217-0700	info	service/telemetry.go:107	Setting up own telemetry...
+2022-06-28T12:42:53.233-0700	info	service/telemetry.go:146	Serving Prometheus metrics	{"address": ":8888", "level": "basic"}
+2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:42	Starting extensions...
+2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "file_storage"}
+2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "file_storage"}
+2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "pprof"}
+2022-06-28T12:42:53.233-0700	info	pprofextension@v0.53.0/pprofextension.go:71	Starting net/http/pprof server	{"config": {"TCPAddr":{"Endpoint":":1888"},"BlockProfileFraction":0,"MutexProfileFraction":0,"SaveToFile":""}}
+2022-06-28T12:42:53.235-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "pprof"}
+2022-06-28T12:42:53.235-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "zpages"}
+2022-06-28T12:42:53.235-0700	info	zpagesextension/zpagesextension.go:64	Registered zPages span processor on tracer provider
+2022-06-28T12:42:53.236-0700	info	zpagesextension/zpagesextension.go:74	Registered Host's zPages
+2022-06-28T12:42:53.237-0700	info	zpagesextension/zpagesextension.go:86	Starting zPages extension	{"config": {"TCPAddr":{"Endpoint":"localhost:55679"}}}
+2022-06-28T12:42:53.237-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "zpages"}
+2022-06-28T12:42:53.237-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "health_check"}
+2022-06-28T12:42:53.237-0700	info	healthcheckextension@v0.53.0/healthcheckextension.go:44	Starting health_check extension	{"config": {"Port":0,"TCPAddr":{"Endpoint":"0.0.0.0:13133"},"Path":"/","CheckCollectorPipeline":{"Enabled":false,"Interval":"5m","ExporterFailureThreshold":5}}}
+2022-06-28T12:42:53.237-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "health_check"}
+2022-06-28T12:42:53.237-0700	info	pipelines/pipelines.go:74	Starting exporters...
+2022-06-28T12:42:53.237-0700	info	pipelines/pipelines.go:78	Exporter is starting...	{"kind": "exporter", "data_type": "logs", "name": "splunk_hec"}
+2022-06-28T12:42:53.241-0700	info	pipelines/pipelines.go:82	Exporter started.	{"kind": "exporter", "data_type": "logs", "name": "splunk_hec"}
+2022-06-28T12:42:53.241-0700	info	pipelines/pipelines.go:86	Starting processors...
+2022-06-28T12:42:53.241-0700	info	pipelines/pipelines.go:90	Processor is starting...	{"kind": "processor", "name": "logstransform", "pipeline": "logs"}
+2022-06-28T12:42:53.249-0700	info	pipelines/pipelines.go:94	Processor started.	{"kind": "processor", "name": "logstransform", "pipeline": "logs"}
+2022-06-28T12:42:53.249-0700	info	pipelines/pipelines.go:90	Processor is starting...	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
+2022-06-28T12:42:53.252-0700	info	internal/resourcedetection.go:136	began detecting resource information	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
+2022-06-28T12:42:53.253-0700	info	internal/resourcedetection.go:150	detected resource information	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs", "resource": {"host.name":"C02CRB54MD6M","os.type":"darwin"}}
+2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:94	Processor started.	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
+2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:90	Processor is starting...	{"kind": "processor", "name": "batch", "pipeline": "logs"}
+2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:94	Processor started.	{"kind": "processor", "name": "batch", "pipeline": "logs"}
+2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:98	Starting receivers...
+2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:102	Exporter is starting...	{"kind": "receiver", "name": "googlecloudpubsub", "pipeline": "logs"}
+2022-06-28T12:42:53.514-0700	info	pipelines/pipelines.go:106	Exporter started.	{"kind": "receiver", "name": "googlecloudpubsub", "pipeline": "logs"}
+2022-06-28T12:42:53.514-0700	info	healthcheck/handler.go:129	Health Check state change	{"status": "ready"}
+2022-06-28T12:42:53.514-0700	info	service/collector.go:220	Starting otelcol...	{"Version": "v0.53.1-4-g5729a1e", "NumCPU": 12}
+2022-06-28T12:42:53.514-0700	info	service/collector.go:128	Everything is ready. Begin running and processing data.
+2022-06-28T12:42:53.514-0700	info	internal/handler.go:117	Starting Streaming Pull	{"kind": "receiver", "name": "googlecloudpubsub", "pipeline": "logs"}
+```
+
+### Generate and verify delivery of a log message
+
+TBD
+
+## Conclusion
+
+You've now seen the basics of customizing the Splunk OpenTelemetry distribution! Using the guidance in this article, you will soon be able to build your own agent derived from the Splunk OpenTelemetry distribution, capable of tackling your own bespoke (and **unsupported by Splunk**) use cases.
+
+
+## Acknowledgement
+
+- Alex (Pub/Sub receiver author)
+- Dmitrii Anoshin (OpenTelemetry developer)
 
 ## Resources
 
@@ -431,5 +533,3 @@ All that's left is for you to fire up new agent and point it at your configurati
 - [Log Processing Operators](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/stanza/docs/operators)
 - [Resource Detection Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourcedetectionprocessor)
 - [OpenTelemetry local development](https://github.com/signalfx/splunk-otel-collector/blob/main/CONTRIBUTING.md#local-development)
-
-
