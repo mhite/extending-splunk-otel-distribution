@@ -448,7 +448,7 @@ These environment variables are described below:
 - `GOOGLE_PROJECT` - GCP project name
 - `GOOGLE_SUBSCRIPTION` - GCP Pub/Sub subscription path, ie. `projects/[PROJECT NAME]/subscriptions/[SUBCRIPTION-NAME]`
 
-Export each of them before launching the OpenTelemetry agent.
+Export each of them before launching the OpenTelemetry agent as shown below.
 
 ```
 $ export SPLUNK_HEC_URL="https://mysplunkhec.com:8088"
