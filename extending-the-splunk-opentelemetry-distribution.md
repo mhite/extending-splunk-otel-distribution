@@ -6,13 +6,13 @@ In this article, I'll walk you through how I "scratched my own" itch in my role 
 
 - Configuring a Google Cloud log sink to publish audit log messages to a Pub/Sub topic
 - Creating a Pub/Sub subscription to the aforementioned Pub/Sub topic
-- Creating a service account with subscriber permission to the aforementioned subscriber
+- Creating a service account with subscriber permission to the aforementioned subscription
 - Exporting a JSON service account key for use with the OpenTelemetry Pub/Sub receiver
 - Creating a Splunk index for Google Cloud log messages
 - Creating a HEC token for use with the OpenTelemetry HEC exporter
 - Customizing the Splunk OpenTelemetry source code to include support for the `googlecloudpubsubreceiver` and `logstransformprocessor` components
-- Compiling and building a custom binary
-- Building an rpm or deb package
+- Compiling and building a custom OpenTelemetry agent binary
+- Building a rpm or deb package of the Splunk OpenTelemetry distribution
 - Configuring the agent to receive Google Cloud log messages via Pub/Sub and deliver them to Splunk as HEC messages
 
 ## Caveats
