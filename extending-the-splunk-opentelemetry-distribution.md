@@ -98,7 +98,7 @@ go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignme
 
 ### Edit source
 
-For the purposes of this exercise, I'm going to create a simple pipeline which leverages my new Pub/Sub receiver to deliver Google Cloud logs messages to Splunk in HEC-compatible format. Because the Pub/Sub receiver and the `logstransform` processor are not enabled by default with the Splunk distribution, I will need to enable the components in the source code and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes made.
+Because the Pub/Sub receiver and the `logstransform` processor are not enabled by default with the Splunk distribution, I will need to enable the components in the source code and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes made.
 
 The following is a diff demonstrating the changes made to `internal/components/components.go`:
 
