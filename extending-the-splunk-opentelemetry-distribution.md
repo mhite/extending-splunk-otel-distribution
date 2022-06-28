@@ -212,7 +212,7 @@ ln -sf otelcol_darwin_amd64 ./bin/otelcol
 
 ```
 
-And since Go also supports cross compilation, you can easily generate binaries for target platforms other than the one you are building on. For example, you can easily generate a Linux x86 binary from a Darwin x86 machine.
+And since Go also supports cross compilation, you can generate binaries for target platforms other than the one you are building on. For example, you can easily generate a Linux x86 binary from a Darwin x86 machine.
 
 ```
 $ make binaries-all-sys                                                                                                                                                                                                  GOOS=darwin  GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make otelcol
