@@ -31,6 +31,8 @@ In this article, I'll walk you through how I "scratched my own" itch in my role 
 
 ### Google Cloud
 
+TBD
+
 #### Create a service account
 
 ```
@@ -47,6 +49,36 @@ TBD
 ```
 $ gcloud iam service-accounts keys create gcp.json --iam-account=otel-test@otel-test.iam.gserviceaccount.com
 created key [34e6eb6a8f34c1975541f28466365a9705441ddf] of type [json] as [gcp.json] for [otel-test@otel-test.iam.gserviceaccount.com]
+```
+
+#### Create Pub/Sub topic
+
+```
+$ gcloud pubsub topics create ${SINK_TOPIC}
+```
+
+#### Create log sink
+
+```
+gcloud logging sinks create ${SINK_NAME} \
+pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${SINK_TOPIC} \
+ --log-filter="resource.type!=\"dataflow_step\""
+```
+
+#### Allow sink writer permission to topic
+
+
+First, determine the identity of the log sink writer.
+
+```
+export SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --format="value(writerIdentity)"`
+```
+
+Next, grant the service account identity permission to publish to the topic.
+
+```
+gcloud pubsub topics add-iam-policy-binding ${SINK_TOPIC} \
+ --member="${SERVICE_ACCOUNT}" --role="roles/pubsub.publisher"
 ```
 
 ### Splunk
@@ -512,6 +544,10 @@ Output should resemble:
 ```
 
 ### Generate and verify delivery of a log message
+
+TBD
+
+## Cleanup
 
 TBD
 
