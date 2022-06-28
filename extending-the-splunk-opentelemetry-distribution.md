@@ -437,7 +437,7 @@ You are now ready to test and verify.
 
 ### Export environment variables
 
-Since our configuration file references multiple environment variables, we'll need to declare them in our shell environment for the purposes of our prototype.
+Since our configuration file references multiple environment variables, we'll need to declare them in our shell environment before launching the agent.
 
 These environment variables are described below:
 
