@@ -130,7 +130,9 @@ go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignme
 
 ### Edit source
 
-Because the Pub/Sub receiver and the `logstransform` processor are not enabled by default with the Splunk distribution, I will need to enable the components in the source code and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes made.
+Because the `googlecloudpubsubreceiver` receiver and the `logstransform` processor are not enabled by default with the Splunk distribution, I will need to enable the components in the source code and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes made along with screenshots highlighting the necessary changes.
+
+#### `internal/components/components.go`
 
 The following is a diff demonstrating the changes made to `internal/components/components.go`:
 
@@ -173,9 +175,21 @@ index 398ba46..40ab407 100644
                 probabilisticsamplerprocessor.NewFactory(),
 ```
 
+Add the `logstransformprocessor` and `googlecloudpubsubreceiver` imports to `internal/components/components.go` as highlighted in the screenshot below.
+
+![internal/components/components.go import changes](./images/components-import.png)
+
+In the same file, within the `Get` function, add `googlecloudpubsubreceiver.NewFactory()` to the `receivers` variable declaration as seen in the screenshot below.
+
+![internal/components/components.go Get receiver variable changes](./images/components-receivers.png)
+
+Similarly, within the `Get` function, add `logstransformprocessor.NewFactory()` to the `processors` variable declaration as seen in the screenshot below.
+
+![internal/components/components.go Get receiver variable changes](./images/components-processors.png)
+
+#### `internal/components/components_test.go`
 
 The following is a diff demonstrating the changes made to `internal/components/components_test.go`:
-
 
 ```
 diff --git a/internal/components/components_test.go b/internal/components/components_test.go
@@ -200,6 +214,13 @@ index c7ee470..df10571 100644
                 "probabilistic_sampler",
 ```
 
+Within the `TestDefaultComponents` function in `internal/components/components_test.go`, add `googlecloudpubsubreceiver` to the `expectedReceivers` variable declaration as seen in the screenshot below.
+
+![internal/components/components_test.go TestDefaultComponents expectedReceivers variable changes](./images/components-test-expected-receivers.png)
+
+Similarly, within the `TestDefaultComponents` function in `internal/components/components_test.go`, add `logstransformprocessor` to the `expectedProcessors` variable declaration as seen in the screenshot below.
+
+![internal/components/components_test.go TestDefaultComponents expectedProcessors variable changes](./images/components-test-expected-processors.png)
 
 ### Get dependencies
 
