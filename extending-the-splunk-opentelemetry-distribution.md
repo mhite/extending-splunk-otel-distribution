@@ -320,8 +320,8 @@ ln -sf migratecheckpoint_windows_amd64.exe ./bin/migratecheckpoint
 
 After the build process is done, you will find the binary builds in the `bin/` directory.
 
-```
-ls -alh bin                                                                                                                                                                                                           total 1397312
+```bash
+$ ls -alh bin                                                                                                                                                                                                           total 1397312
 drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
 drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
 lrwxr-xr-x   1 mhite  staff    29B Jun 22 14:12 migratecheckpoint -> migratecheckpoint_linux_amd64
