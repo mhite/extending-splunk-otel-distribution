@@ -91,13 +91,13 @@ $ gcloud pubsub subscriptions add-iam-policy-binding ${PUBSUB_SUB} \
 
 #### Create log sink
 
-The following command will create a log router that matches basic cloud audit logs. These types of logs are enabled by default in all Google Cloud projects.
+The following command will create a log router that matches basic cloud audit logs along with a custom log.
 
 ```
 $ gcloud logging sinks create ${SINK_NAME} \
 pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${PUBSUB_TOPIC} \
 --log-filter='log_id("cloudaudit.googleapis.com/activity")
-OR log_id("cloudaudit.googleapis.com/policy")'
+OR log_id("cloudaudit.googleapis.com/policy") OR log_id("custom.googleapis.com/oteltest")'
 ```
 
 #### Allow sink writer permission to topic
@@ -528,8 +528,8 @@ extensions:
 
 receivers:
   googlecloudpubsub:
-    project: "${GOOGLE_PROJECT}"
-    subscription: "${GOOGLE_SUBSCRIPTION}"
+    project: "${GOOGLE_CLOUD_PROJECT}"
+    subscription: "projects/${GOOGLE_CLOUD_PROJECT}/subscription/${PUBSUB_SUB}"
     encoding: raw_text
 
 exporters:
@@ -569,8 +569,8 @@ These environment variables are described below:
 - `SPLUNK_HEC_URL` - URL path to the Splunk HEC endpoint, ie. https://mysplunkhec.com:8088/
 - `SPLUNK_INDEX` - Splunk index name to store log messages
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to GCP service account JSON credential
-- `GOOGLE_PROJECT` - GCP project name
-- `GOOGLE_SUBSCRIPTION` - GCP Pub/Sub subscription path, ie. `projects/[PROJECT NAME]/subscriptions/[SUBCRIPTION-NAME]`
+- `GOOGLE_CLOUD_PROJECT` - GCP project name
+- `PUBSUB_SUB` - GCP Pub/Sub subscription name
 
 Export each of them before launching the OpenTelemetry agent as shown below.
 
@@ -579,9 +579,9 @@ $ export SPLUNK_HEC_URL="https://mysplunkhec.com:8088"
 $ export SPLUNK_HEC_TOKEN="your-hec-token"      
 $ export SPLUNK_INDEX="oteltest"                                                                                                                               
 $ export GOOGLE_APPLICATION_CREDENTIALS="/Users/mhite/repo/blog/custom-agent/splunk-otel-collector/gcp.json" 
-$ export GOOGLE_PROJECT="your-project-name"
-$ export GOOGLE_SUBSCRIPTION="projects/your-project-name/subscriptions/your-log-subscription-name"
 ```
+
+The `GOOGLE_CLOUD_PROJECT` and `PUBSUB_SUB` environment variables should already be present from previous setup steps.
 
 ### Launch agent
 
@@ -637,18 +637,37 @@ Output should resemble:
 
 ### Generate and verify delivery of a log message
 
-TBD
+```
+$ gcloud logging write oteltest "Test message"                                                                                                                                     Created log entry.
+```
 
 ## Cleanup
-TBD
+
+To avoid future charges, delete the following cloud resources created during this experiment.
 
 ### Delete log sink
 
+```
+$ gcloud logging sinks delete ${SINK_NAME}
+```
+
 ### Delete Pub/Sub subscription
+
+```
+$ gcloud pubsub subscriptions delete ${PUBSUB_SUB}
+```   
 
 ### Delete Pub/Sub topic
 
+```
+$ gcloud pubsub topics delete ${PUBSUB_TOPIC}
+```
+
 ### Delete service account
+
+```
+$ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_SHORT}
+```
 
 ### Delete Splunk HEC token
 
