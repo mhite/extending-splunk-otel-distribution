@@ -581,7 +581,7 @@ $ export SPLUNK_INDEX="oteltest"
 $ export GOOGLE_APPLICATION_CREDENTIALS="/Users/mhite/repo/blog/custom-agent/splunk-otel-collector/gcp.json" 
 ```
 
-The `GOOGLE_CLOUD_PROJECT` and `PUBSUB_SUB` environment variables should already be present from previous setup steps.
+The `GOOGLE_CLOUD_PROJECT` and `PUBSUB_SUB` environment variables should already be present from [previous setup steps](#google-cloud).
 
 ### Launch agent
 
