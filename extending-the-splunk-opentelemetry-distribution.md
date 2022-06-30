@@ -2,7 +2,7 @@
 
 The [Splunk OpenTelemetry Collector](https://github.com/signalfx/splunk-otel-collector) is a distribution of the [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector) built to provide a unified way for our customers to receive, process, and export metric, trace, and log data to Splunk Cloud and Splunk Observability products. While Splunk provides support for a wide variety of OpenTelemetry components, unusual use cases or newer and less stable components aren't enabled by default in our distribution. If you find yourself wanting to experiment with an unsupported use case, extending the Splunk distribution is relatively straightforward even for someone without an extensive development background.
 
-In this article, I'll walk you through how I "scratched my own" itch in my role as a Google Cloud partner engineer by extending the Splunk OpenTelemetry collector to include support for sending Google Cloud log messages from a Pub/Sub subscription to a Splunk HTTP Endpoint Collector (HEC). Specifically, I will cover the following steps:
+In this article, I will demonstrate such an experiment by extending the Splunk OpenTelemetry collector to transport Google Cloud log messages from a Pub/Sub subscription to a Splunk HTTP Endpoint Collector (HEC). Specifically, I will cover the following steps:
 
 - Configuring a Google Cloud log sink to publish audit log messages to a Pub/Sub topic
 - Creating a Pub/Sub subscription to the aforementioned Pub/Sub topic
@@ -17,7 +17,7 @@ In this article, I'll walk you through how I "scratched my own" itch in my role 
 
 ## Caveats
 
-- This is an experimental approach and should not be used in a production environment. **You will not receive support from Splunk or Google Cloud.**
+- This is an experimental approach and should not be used in a production environment. **You will not receive support from Splunk or Google Cloud**. For information on deploying a production-ready Google Cloud log export to Splunk, please refer to [official Google Cloud documentation](https://cloud.google.com/architecture/deploying-production-ready-log-exports-to-splunk-using-dataflow). 
 - Custom distributions can also be built with the [OpenTelemetry Collector Builder](https://github.com/open-telemetry/opentelemetry-collector/tree/main/cmd/builder). Splunk has not yet migrated to using the builder and the process won't be covered here.
 
 ## Prerequisites
@@ -32,15 +32,24 @@ In this article, I'll walk you through how I "scratched my own" itch in my role 
 
 ### Google Cloud
 
-TBD
+The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation.
+
 #### Export variables
+
+In your development environment, export the following shell variables.
 
 ```
 export SERVICE_ACCOUNT_SHORT=otel-test
 export SERVICE_ACCOUNT_FULL=${SERVICE_ACCOUNT_SHORT}@${SERVICE_ACCOUNT_SHORT}.iam.gserviceaccount.com
 export SERVICE_ACCOUNT_FILENAME=gcp.json
 export SINK_NAME=otel-log-sink
-export SINK_TOPIC=otel-log-topic
+export PUBSUB_TOPIC=otel-log-topic
+export PUBSUB_SUB=otel-log-sub
+```
+
+Create or determine an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable.
+
+```
 export GOOGLE_CLOUD_PROJECT=<YOUR-CLOUD-PROJECT-NAME>
 ```
 
@@ -51,33 +60,44 @@ $ gcloud iam service-accounts create ${SERVICE_ACCOUNT_SHORT}
 Created service account [otel-test].
 ```
 
-#### Bind role to service account
-
-TBD
-
 #### Export JSON key
 
 ```
-$ gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_FILENAME} --iam-account=${SERVICE_ACCOUNT_FULL}
+$ gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_FILENAME} \
+--iam-account=${SERVICE_ACCOUNT_FULL}
 created key [34e6eb6a8f34c1975541f28466365a9705441ddf] of type [json] as [gcp.json] for [otel-test@otel-test.iam.gserviceaccount.com]
 ```
 
 #### Create Pub/Sub topic
 
 ```
-$ gcloud pubsub topics create ${SINK_TOPIC}
+$ gcloud pubsub topics create ${PUBSUB_TOPIC}
 ```
 
 #### Create Pub/Sub subscription
 
-TBD
+```
+$ gcloud pubsub subscriptions create \
+  --topic ${PUBSUB_TOPIC} ${PUBSUB_SUB}
+```   
+
+#### Bind role to service account
+
+```
+$ gcloud pubsub subscriptions add-iam-policy-binding ${PUBSUB_SUB} \
+--member="${SERVICE_ACCOUNT_FULL}" \
+--role="roles/pubsub.subscriber"
+```
 
 #### Create log sink
 
+The following command will create a log router that matches basic cloud audit logs. These types of logs are enabled by default in all Google Cloud projects.
+
 ```
-gcloud logging sinks create ${SINK_NAME} \
-pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${SINK_TOPIC} \
- --log-filter="resource.type!=\"dataflow_step\""
+$ gcloud logging sinks create ${SINK_NAME} \
+pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${PUBSUB_TOPIC} \
+--log-filter='log_id("cloudaudit.googleapis.com/activity")
+OR log_id("cloudaudit.googleapis.com/policy")'
 ```
 
 #### Allow sink writer permission to topic
@@ -89,10 +109,10 @@ First, determine the identity of the log sink writer.
 export SINK_SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --format="value(writerIdentity)"`
 ```
 
-Next, grant the service account identity permission to publish to the topic.
+Next, grant the log writer service account identity permission to publish to the topic.
 
 ```
-gcloud pubsub topics add-iam-policy-binding ${SINK_TOPIC} \
+gcloud pubsub topics add-iam-policy-binding ${PUBSUB_TOPIC} \
  --member="${SINK_SERVICE_ACCOUNT}" --role="roles/pubsub.publisher"
 ```
 
