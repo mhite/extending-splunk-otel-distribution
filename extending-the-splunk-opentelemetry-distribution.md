@@ -32,32 +32,58 @@ In this article, I will demonstrate such an experiment by extending the Splunk O
 
 ### Google Cloud
 
-The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation. It is highly recommended that you create a dedicated Google Cloud project for the purposes of this exercise.
+The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation. It is highly recommended that you create a dedicated Google Cloud project for the purposes of this exercise. For example, to create and new project titled "oteltest" and switch configuration contexts to this new project, issue the following commands:
+
+```
+$ gcloud projects create oteltest
+Create in progress for [https://cloudresourcemanager.googleapis.com/v1/projects/oteltest].
+Waiting for [operations/cp.6929380012186718041] to finish...done.    
+Enabling service [cloudapis.googleapis.com] on project [oteltest]...
+Operation "operations/acat.p2-71306234863-65849f18-f411-45ec-8958-42f23f80d148" finished successfully.
+$ gcloud config set project oteltest
+Updated property [core/project].
+```
 
 #### Export variables
 
-In your development environment, export the following shell variables.
+Create or identify an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable. Ensure this variable is set to the `projectId` as listed in the output `gcloud projects list --format=flattened`. For example:
 
 ```
-export SERVICE_ACCOUNT_SHORT=otel-test
-export SERVICE_ACCOUNT_FULL=${SERVICE_ACCOUNT_SHORT}@${SERVICE_ACCOUNT_SHORT}.iam.gserviceaccount.com
-export SERVICE_ACCOUNT_FILENAME=gcp.json
-export SINK_NAME=otel-log-sink
-export PUBSUB_TOPIC=otel-log-topic
-export PUBSUB_SUB=otel-log-sub
+$ gcloud projects list --format=flattened
+---
+createTime:     2022-06-30T21:56:08.101Z
+lifecycleState: ACTIVE
+name:           oteltest
+parent.id:      560850384093
+parent.type:    organization
+projectId:      oteltest
+projectNumber:  71306234863
+---
+...
 ```
 
-Create or identify an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable.
+```
+$ export GOOGLE_CLOUD_PROJECT=oteltest
 
 ```
-export GOOGLE_CLOUD_PROJECT=<YOUR-CLOUD-PROJECT-NAME>
+
+Please note that `projectId` is not always the same as `name`.
+
+Next, export the following shell variables.
+
+```
+$ export SERVICE_ACCOUNT_SHORT=otel-test
+$ export SERVICE_ACCOUNT_FULL=${SERVICE_ACCOUNT_SHORT}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com
+$ export SERVICE_ACCOUNT_FILENAME=gcp.json
+$ export SINK_NAME=otel-log-sink
+$ export PUBSUB_TOPIC=otel-log-topic
+$ export PUBSUB_SUB=otel-log-sub
 ```
 
 #### Create a service account
 
 ```
 $ gcloud iam service-accounts create ${SERVICE_ACCOUNT_SHORT}
-Created service account [otel-test].
 ```
 
 #### Export JSON key
@@ -65,7 +91,12 @@ Created service account [otel-test].
 ```
 $ gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_FILENAME} \
 --iam-account=${SERVICE_ACCOUNT_FULL}
-created key [34e6eb6a8f34c1975541f28466365a9705441ddf] of type [json] as [gcp.json] for [otel-test@otel-test.iam.gserviceaccount.com]
+```
+
+#### Enable Pub/Sub API
+
+```
+$ gcloud services enable pubsub.googleapis.com
 ```
 
 #### Create Pub/Sub topic
@@ -85,7 +116,7 @@ $ gcloud pubsub subscriptions create \
 
 ```
 $ gcloud pubsub subscriptions add-iam-policy-binding ${PUBSUB_SUB} \
---member="${SERVICE_ACCOUNT_FULL}" \
+--member="serviceAccount:${SERVICE_ACCOUNT_FULL}" \
 --role="roles/pubsub.subscriber"
 ```
 
@@ -96,8 +127,7 @@ The following command will create a log router that matches basic cloud audit lo
 ```
 $ gcloud logging sinks create ${SINK_NAME} \
 pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${PUBSUB_TOPIC} \
---log-filter='log_id("cloudaudit.googleapis.com/activity")
-OR log_id("cloudaudit.googleapis.com/policy") OR log_id("custom.googleapis.com/oteltest")'
+--log-filter='log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/policy") OR log_id("custom.googleapis.com/oteltest")'
 ```
 
 #### Allow sink writer permission to topic
@@ -106,7 +136,7 @@ OR log_id("cloudaudit.googleapis.com/policy") OR log_id("custom.googleapis.com/o
 First, determine the identity of the log sink writer.
 
 ```
-export SINK_SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --format="value(writerIdentity)"`
+$ export SINK_SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --format="value(writerIdentity)"`
 ```
 
 Next, grant the log writer service account identity permission to publish to the topic.
@@ -152,7 +182,13 @@ Click the "Review" button in the top right corner.
 
 Click the "Submit" button in the top right corner.
 
-Copy the "Token Value" to a text file for later use.
+Copy the "Token Value" to a text file for later use. 
+
+In your development environment, export this token as an environment variable.
+
+```
+$ export SPLUNK_HEC_TOKEN=<token>
+```
 
 ## Build
 
@@ -179,6 +215,10 @@ Receiving objects: 100% (11502/11502), 5.81 MiB | 14.94 MiB/s, done.
 Resolving deltas: 100% (6990/6990), done.
 ```
 
+```
+$ cd splunk-otel-collector
+```
+
 ### Install tools
 
 The `Makefile` included with Splunk's OpenTelemetry distribution includes a target which installs prerequisite build tooling. Make sure you run this command to prepare your local development environment.
@@ -197,6 +237,7 @@ go: finding module for package github.com/kisielk/gotool
 go: found github.com/kisielk/gotool in github.com/kisielk/gotool v1.0.0
 go install github.com/tcnksm/ghr@v0.14.0
 go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest
+...
 ```
 
 ### Edit source
@@ -529,7 +570,7 @@ extensions:
 receivers:
   googlecloudpubsub:
     project: "${GOOGLE_CLOUD_PROJECT}"
-    subscription: "projects/${GOOGLE_CLOUD_PROJECT}/subscription/${PUBSUB_SUB}"
+    subscription: "projects/${GOOGLE_CLOUD_PROJECT}/subscriptions/${PUBSUB_SUB}"
     encoding: raw_text
 
 exporters:
@@ -552,7 +593,6 @@ service:
       receivers: [ googlecloudpubsub ]
       processors: [ batch, resourcedetection, logstransform ]
       exporters: [ splunk_hec ]
-
 ```
 
 ## Test
@@ -638,7 +678,7 @@ Output should resemble:
 ### Generate and verify delivery of a log message
 
 ```
-$ gcloud logging write oteltest "Test message"                                                                                                                                     Created log entry.
+$ gcloud logging write oteltest "Test message"                                                                                                                   
 ```
 
 TBD
