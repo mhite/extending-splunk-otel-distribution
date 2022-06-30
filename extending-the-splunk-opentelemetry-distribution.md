@@ -645,39 +645,61 @@ TBD
 
 ## Cleanup
 
+The following steps summarize artifact cleanup for both the Google Cloud and Splunk environments.
+
+### Google Cloud
+
 To avoid future charges, delete the following cloud resources created during this experiment.
 
-### Delete log sink
+#### Delete log sink
 
 ```
 $ gcloud logging sinks delete ${SINK_NAME}
 ```
 
-### Delete Pub/Sub subscription
+#### Delete Pub/Sub subscription
 
 ```
 $ gcloud pubsub subscriptions delete ${PUBSUB_SUB}
 ```   
 
-### Delete Pub/Sub topic
+#### Delete Pub/Sub topic
 
 ```
 $ gcloud pubsub topics delete ${PUBSUB_TOPIC}
 ```
 
-### Delete service account
+#### Delete service account
 
 ```
 $ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_SHORT}
 ```
 
-### Delete Splunk HEC token
+### Splunk
 
-TBD
+#### Delete Splunk HEC token
 
-### Delete Splunk index
+Click the "Settings" menu in the top right corner. Under the "Data" column, click on "Data inputs".
 
-TBD
+Click the "HTTP Event Collector" hyperlink.
+
+In the filter box, type "otelhec" and hit enter.
+
+Under the "Actions" column for the row labeled "otelhec", click "Delete".
+
+Click the "Delete" button in the "Delete Token" popup.
+
+#### Delete Splunk index
+
+Click the "Settings" menu in the top right corner.
+
+Under the "Data" column, click on "Indexes".
+
+In the filter box, type "oteltest" and hit enter.
+
+Under the "Actions" column for the row labeled "oteltest", click "Delete".
+
+Click the "Delete" button in the "Delete Index" popup.
 
 ## Conclusion
 
