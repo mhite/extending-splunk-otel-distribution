@@ -32,7 +32,7 @@ In this article, I will demonstrate such an experiment by extending the Splunk O
 
 ### Google Cloud
 
-The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation. You may even consider creating a separate Google Cloud project for the purposes of this exercise.
+The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation. It is highly recommended that you create a dedicated Google Cloud project for the purposes of this exercise.
 
 #### Export variables
 
