@@ -677,6 +677,8 @@ $ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_SHORT}
 
 ### Splunk
 
+Delete the following Splunk resources created during this experiment, too.
+
 #### Delete Splunk HEC token
 
 Click the "Settings" menu in the top right corner. Under the "Data" column, click on "Data inputs".
