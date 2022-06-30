@@ -23,20 +23,31 @@ In this article, I'll walk you through how I "scratched my own" itch in my role 
 ## Prerequisites
 
 * You aren't afraid of the CLI
-* You aren't afraid to compile your own code.
-* A working [Go development environment](https://go.dev/doc/install).
-* [Optional] Docker or podman installed.
+* You aren't afraid to compile your own code
+* A working [Go development environment](https://go.dev/doc/install)
+* [Optional] Docker or podman installed in development environment
+* A Splunk instance with [Splunk Add-on for Google Cloud Platform](https://splunkbase.splunk.com/app/3088/) installed
 
 ## Setup
 
 ### Google Cloud
 
 TBD
+#### Export variables
+
+```
+export SERVICE_ACCOUNT_SHORT=otel-test
+export SERVICE_ACCOUNT_FULL=${SERVICE_ACCOUNT_SHORT}@${SERVICE_ACCOUNT_SHORT}.iam.gserviceaccount.com
+export SERVICE_ACCOUNT_FILENAME=gcp.json
+export SINK_NAME=otel-log-sink
+export SINK_TOPIC=otel-log-topic
+export GOOGLE_CLOUD_PROJECT=<YOUR-CLOUD-PROJECT-NAME>
+```
 
 #### Create a service account
 
 ```
-$ gcloud iam service-accounts create otel-test
+$ gcloud iam service-accounts create ${SERVICE_ACCOUNT_SHORT}
 Created service account [otel-test].
 ```
 
@@ -47,7 +58,7 @@ TBD
 #### Export JSON key
 
 ```
-$ gcloud iam service-accounts keys create gcp.json --iam-account=otel-test@otel-test.iam.gserviceaccount.com
+$ gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_FILENAME} --iam-account=${SERVICE_ACCOUNT_FULL}
 created key [34e6eb6a8f34c1975541f28466365a9705441ddf] of type [json] as [gcp.json] for [otel-test@otel-test.iam.gserviceaccount.com]
 ```
 
@@ -56,6 +67,10 @@ created key [34e6eb6a8f34c1975541f28466365a9705441ddf] of type [json] as [gcp.js
 ```
 $ gcloud pubsub topics create ${SINK_TOPIC}
 ```
+
+#### Create Pub/Sub subscription
+
+TBD
 
 #### Create log sink
 
@@ -71,17 +86,53 @@ pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${SINK_TOPIC} \
 First, determine the identity of the log sink writer.
 
 ```
-export SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --format="value(writerIdentity)"`
+export SINK_SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --format="value(writerIdentity)"`
 ```
 
 Next, grant the service account identity permission to publish to the topic.
 
 ```
 gcloud pubsub topics add-iam-policy-binding ${SINK_TOPIC} \
- --member="${SERVICE_ACCOUNT}" --role="roles/pubsub.publisher"
+ --member="${SINK_SERVICE_ACCOUNT}" --role="roles/pubsub.publisher"
 ```
 
 ### Splunk
+
+The following steps will create a Splunk index and HEC token. You must have administrative permissions to perform these operations. The index name and HEC token will be referenced in later steps.
+
+#### Create the index
+
+Click the "Settings" menu in the top right corner.
+
+Under the "Data" column, click on "Indexes".
+
+Click the "New Index" button in the top right corner.
+
+In the "Index Name" field, enter "oteltest".
+
+![New Index](./images/new-index.png)
+
+Click "Save".
+
+#### Create HEC token
+
+Click the "Settings" menu in the top right corner. Under the "Data" column, click on "Data inputs".
+
+In the "HTTP Event Collector" row, click the "Add new" button under the "Actions" column.
+
+In the "Name" field, type "otelhec".
+
+Click the "Next" button in the top right corner.
+
+In the "Select Allowed Indexes" section, choose the "oteltest" item in the "Available item(s)" box. You should see "oteltest" appear in the "Selected item(s)" box. You should also see the "Default Index" update to "oteltest".
+
+![HEC Input Settings](./images/hec-input-settings.png)
+
+Click the "Review" button in the top right corner.
+
+Click the "Submit" button in the top right corner.
+
+Copy the "Token Value" to a text file for later use.
 
 ## Build
 
@@ -320,7 +371,7 @@ ln -sf migratecheckpoint_windows_amd64.exe ./bin/migratecheckpoint
 
 After the build process is done, you will find the binary builds in the `bin/` directory.
 
-```bash
+```
 $ ls -alh bin                                                                                                                                                                                                           total 1397312
 drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
 drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
@@ -569,18 +620,28 @@ Output should resemble:
 TBD
 
 ## Cleanup
-
 TBD
+
+### Delete log sink
+
+### Delete Pub/Sub subscription
+
+### Delete Pub/Sub topic
+
+### Delete service account
+
+### Delete Splunk HEC token
+
+### Delete Splunk index
 
 ## Conclusion
 
 You've now seen the basics of customizing the Splunk OpenTelemetry distribution! Using the guidance in this article, you will soon be able to build your own agent derived from the Splunk OpenTelemetry distribution, capable of tackling your own bespoke (and **unsupported by Splunk**) use cases.
 
-
 ## Acknowledgement
 
-- Alex (Pub/Sub receiver author)
-- Dmitrii Anoshin (OpenTelemetry developer)
+- [Alex Van Boxel](https://www.linkedin.com/in/alexvanboxel/) for his generous contribution to the [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector-contrib) of the Google Cloud Pub/Sub receiver and exporter.
+- [Dmitrii Anoshin](https://www.linkedin.com/in/dmitrii-anoshin/) (OpenTelemetry developer) for his review of this document.
 
 ## Resources
 
