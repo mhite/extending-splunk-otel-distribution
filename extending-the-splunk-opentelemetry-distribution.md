@@ -641,6 +641,8 @@ Output should resemble:
 $ gcloud logging write oteltest "Test message"                                                                                                                                     Created log entry.
 ```
 
+TBD
+
 ## Cleanup
 
 To avoid future charges, delete the following cloud resources created during this experiment.
@@ -671,7 +673,11 @@ $ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_SHORT}
 
 ### Delete Splunk HEC token
 
+TBD
+
 ### Delete Splunk index
+
+TBD
 
 ## Conclusion
 
