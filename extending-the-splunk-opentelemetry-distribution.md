@@ -47,7 +47,7 @@ export PUBSUB_TOPIC=otel-log-topic
 export PUBSUB_SUB=otel-log-sub
 ```
 
-Create or determine an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable.
+Create or identify an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable.
 
 ```
 export GOOGLE_CLOUD_PROJECT=<YOUR-CLOUD-PROJECT-NAME>
