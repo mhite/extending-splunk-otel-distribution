@@ -639,7 +639,7 @@ Click the "Delete" button in the "Delete Index" popup.
 
 ## Conclusion
 
-You've now seen the basics of customizing the Splunk OpenTelemetry distribution! Using the guidance in this article, you will soon be able to build your own agent derived from the Splunk OpenTelemetry distribution, capable of tackling your own bespoke (and **unsupported by Splunk**) use cases.
+You've now seen the basics of customizing the Splunk OpenTelemetry distribution! Using the guidance in this article, you now know everything you need to tackle your own bespoke (and **unsupported by Splunk**) custom agent use case.
 
 ## Acknowledgement
 
