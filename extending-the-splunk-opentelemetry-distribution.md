@@ -17,7 +17,7 @@ In this article, I will demonstrate such an experiment by extending the Splunk O
 
 ## Caveats
 
-- This is an experimental approach and should not be used in a production environment. **You will not receive support from Splunk or Google Cloud**. For information on deploying a production-ready Google Cloud log export to Splunk, please refer to [official Google Cloud documentation](https://cloud.google.com/architecture/deploying-production-ready-log-exports-to-splunk-using-dataflow). 
+- This is an experimental approach and should not be used in a production environment. **You will not receive support from Splunk or Google Cloud**. For information on deploying a production-ready Google Cloud log export to Splunk, please refer to [official Google Cloud documentation](https://cloud.google.com/architecture/deploying-production-ready-log-exports-to-splunk-using-dataflow).
 - Custom distributions can also be built with the [OpenTelemetry Collector Builder](https://github.com/open-telemetry/opentelemetry-collector/tree/main/cmd/builder). Splunk has not yet migrated to using the builder and the process won't be covered here.
 
 ## Prerequisites
@@ -108,7 +108,7 @@ $ gcloud pubsub topics create ${PUBSUB_TOPIC}
 ```
 $ gcloud pubsub subscriptions create \
   --topic ${PUBSUB_TOPIC} ${PUBSUB_SUB}
-```   
+```
 
 #### Bind role to service account
 
@@ -125,7 +125,7 @@ The following command will create a log router that matches basic cloud audit lo
 ```
 $ gcloud logging sinks create ${SINK_NAME} \
 pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${PUBSUB_TOPIC} \
---log-filter='log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/policy") OR log_id("custom.googleapis.com/oteltest")'
+--log-filter='log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/policy") OR log_id("oteltest")'
 ```
 
 #### Allow sink writer permission to topic
@@ -180,7 +180,7 @@ Click the "Review" button in the top right corner.
 
 Click the "Submit" button in the top right corner.
 
-Copy the "Token Value" to a text file for later use. 
+Copy the "Token Value" to a text file for later use.
 
 In your development environment, export this token as an environment variable.
 
@@ -338,7 +338,7 @@ $ make otelcol
 And since Go also supports cross compilation, you can generate binaries for target platforms other than the one you are building on. For example, you can easily generate a Linux x86 binary from a Darwin x86 machine.
 
 ```
-$ make binaries-all-sys                                                                                                                                                                                                  
+$ make binaries-all-sys
 ```
 
 ### Inspect builds
@@ -501,9 +501,9 @@ Export each of them before launching the OpenTelemetry agent as shown below.
 
 ```
 $ export SPLUNK_HEC_URL="https://mysplunkhec.com:8088"
-$ export SPLUNK_HEC_TOKEN="your-hec-token"      
-$ export SPLUNK_INDEX="oteltest"                                                                                                                               
-$ export GOOGLE_APPLICATION_CREDENTIALS="/Users/mhite/repo/blog/custom-agent/splunk-otel-collector/gcp.json" 
+$ export SPLUNK_HEC_TOKEN="your-hec-token"
+$ export SPLUNK_INDEX="oteltest"
+$ export GOOGLE_APPLICATION_CREDENTIALS="/Users/mhite/repo/blog/custom-agent/splunk-otel-collector/gcp.json"
 ```
 
 The `GOOGLE_CLOUD_PROJECT` and `PUBSUB_SUB` environment variables should already be present from [previous setup steps](#google-cloud).
@@ -562,11 +562,20 @@ Output should resemble:
 
 ### Generate and verify delivery of a log message
 
+Any easy way to test that the pipeline is working is to write a test message to Cloud Logging and search for it in Splunk. To inject a test message, run the following command:
+
 ```
-$ gcloud logging write oteltest "Test message"                                                                                                                   
+$ gcloud logging write oteltest "Test message"
 ```
 
-TBD
+Then, within Splunk, search for the following:
+
+```
+index="oteltest" data.textPayload="Test message"
+```
+
+Ensure that you have selected an appropriately constrained time selection within the Splunk time picker.
+
 
 ## Cleanup
 
@@ -586,7 +595,7 @@ $ gcloud logging sinks delete ${SINK_NAME}
 
 ```
 $ gcloud pubsub subscriptions delete ${PUBSUB_SUB}
-```   
+```
 
 #### Delete Pub/Sub topic
 
@@ -597,7 +606,7 @@ $ gcloud pubsub topics delete ${PUBSUB_TOPIC}
 #### Delete service account
 
 ```
-$ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_SHORT}
+$ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_FULL}
 ```
 
 ### Splunk
