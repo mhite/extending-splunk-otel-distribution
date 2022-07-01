@@ -351,7 +351,7 @@ $ ls -alh bin
 
 Output:
 
-```                                                                                                                                                                                                           total 1397312
+```                                                                                             total 1397312
 drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
 drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
 lrwxr-xr-x   1 mhite  staff    29B Jun 22 14:12 migratecheckpoint -> migratecheckpoint_linux_amd64
@@ -393,7 +393,7 @@ $ ls -al dist
 
 Output:
 
-```                                                                                                                                                                                                           total 918320
+```                                                                                             total 918320
 drwx------@  4 mhite  staff        128 Jun 22 14:13 .
 drwxr-xr-x  26 mhite  staff        832 Jun 22 14:12 ..
 -rw-------@  1 mhite  staff  226006452 Jun 22 14:09 splunk-otel-collector-0.53.1~4_g5729a1e-1.x86_64.rpm
@@ -562,7 +562,7 @@ Output should resemble:
 
 ### Generate and verify delivery of a log message
 
-Any easy way to test that the pipeline is working is to write a test message to Cloud Logging and search for it in Splunk. To inject a test message, run the following command:
+To test the pipeline, write a message to Cloud Logging and search for it in Splunk. To inject a test message, run the following command:
 
 ```
 $ gcloud logging write oteltest "Test message"
