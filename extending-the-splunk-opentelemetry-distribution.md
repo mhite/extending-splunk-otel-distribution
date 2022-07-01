@@ -579,7 +579,7 @@ Ensure that you have selected an appropriately constrained time selection within
 
 ## Cleanup
 
-The following steps summarize artifact cleanup for both the Google Cloud and Splunk environments.
+The following section summarizes cleanup steps for both the Google Cloud and Splunk environments.
 
 ### Google Cloud
 
