@@ -36,12 +36,10 @@ The following steps cover Google Cloud setup. Please ensure these commands are r
 
 ```
 $ gcloud projects create oteltest
-Create in progress for [https://cloudresourcemanager.googleapis.com/v1/projects/oteltest].
-Waiting for [operations/cp.6929380012186718041] to finish...done.    
-Enabling service [cloudapis.googleapis.com] on project [oteltest]...
-Operation "operations/acat.p2-71306234863-65849f18-f411-45ec-8958-42f23f80d148" finished successfully.
+```
+
+```
 $ gcloud config set project oteltest
-Updated property [core/project].
 ```
 
 #### Export variables
@@ -206,13 +204,6 @@ The basic steps for preparing the source code are as follows:
 
 ```
 $ git clone https://github.com/signalfx/splunk-otel-collector
-Cloning into 'splunk-otel-collector'...
-remote: Enumerating objects: 11502, done.
-remote: Counting objects: 100% (464/464), done.
-remote: Compressing objects: 100% (290/290), done.
-remote: Total 11502 (delta 216), reused 333 (delta 166), pack-reused 11038
-Receiving objects: 100% (11502/11502), 5.81 MiB | 14.94 MiB/s, done.
-Resolving deltas: 100% (6990/6990), done.
 ```
 
 ```
@@ -225,19 +216,6 @@ The `Makefile` included with Splunk's OpenTelemetry distribution includes a targ
 
 ```
 $ make install-tools
-go install github.com/client9/misspell/cmd/misspell@v0.3.4
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.0
-go install github.com/google/addlicense@v0.0.0-20200906110928-a0294312aa76
-go install github.com/jstemmer/go-junit-report@v0.9.1
-go install github.com/ory/go-acc@v0.2.8
-go: downloading github.com/ory/go-acc v0.2.8
-go: downloading golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
-go install github.com/pavius/impi/cmd/impi@v0.0.3
-go: finding module for package github.com/kisielk/gotool
-go: found github.com/kisielk/gotool in github.com/kisielk/gotool v1.0.0
-go install github.com/tcnksm/ghr@v0.14.0
-go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest
-...
 ```
 
 ### Edit source
@@ -340,28 +318,10 @@ Before compiling, retrieve the new dependencies for the `googlecloudpubsubreceiv
 
 ```
 $ go get github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver
-go: upgraded cloud.google.com/go v0.100.2 => v0.102.0
-go: upgraded cloud.google.com/go/pubsub v1.3.1 => v1.22.2
-go: added github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver v0.53.0
 ```
+
 ```
 $ go get github.com/open-telemetry/opentelemetry-collector-contrib/processor/logstransformprocessor
-go: downloading github.com/open-telemetry/opentelemetry-collector-contrib v0.54.0
-go: downloading github.com/open-telemetry/opentelemetry-collector-contrib/processor/logstransformprocessor v0.54.0
-go: downloading github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza v0.54.0
-go: downloading github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage v0.54.0
-go: downloading github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.54.0
-go: upgraded github.com/knadh/koanf v1.4.1 => v1.4.2
-go: upgraded github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage v0.53.0 => v0.54.0
-go: upgraded github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.53.0 => v0.54.0
-go: upgraded github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza v0.53.0 => v0.54.0
-go: added github.com/open-telemetry/opentelemetry-collector-contrib/processor/logstransformprocessor v0.54.0
-go: upgraded go.opentelemetry.io/collector v0.53.1-0.20220615184617-4cefca87d2c6 => v0.54.0
-go: upgraded go.opentelemetry.io/collector/pdata v0.53.1-0.20220615184617-4cefca87d2c6 => v0.54.0
-go: upgraded go.opentelemetry.io/collector/semconv v0.53.1-0.20220615184617-4cefca87d2c6 => v0.54.0
-go: upgraded k8s.io/api v0.24.1 => v0.24.2
-go: upgraded k8s.io/apimachinery v0.24.1 => v0.24.2
-go: upgraded k8s.io/client-go v0.24.1 => v0.24.2
 ```
 
 ### Make binary
@@ -371,69 +331,27 @@ Now that the necessary changes have been made to the source code and the depende
 
 ```
 $ make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_darwin_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_darwin_amd64 ./bin/otelcol
-
 ```
+
+### All platform binaries [Optional]
 
 And since Go also supports cross compilation, you can generate binaries for target platforms other than the one you are building on. For example, you can easily generate a Linux x86 binary from a Darwin x86 machine.
 
 ```
-$ make binaries-all-sys                                                                                                                                                                                                  GOOS=darwin  GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_darwin_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_darwin_amd64 ./bin/otelcol
-GOOS=darwin  GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make translatesfx
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/translatesfx_darwin_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/translatesfx
-ln -sf translatesfx_darwin_amd64 ./bin/translatesfx
-GOOS=darwin  GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make migratecheckpoint
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_darwin_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/migratecheckpoint
-ln -sf migratecheckpoint_darwin_amd64 ./bin/migratecheckpoint
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_linux_amd64 ./bin/otelcol
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make translatesfx
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/translatesfx_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/translatesfx
-ln -sf translatesfx_linux_amd64 ./bin/translatesfx
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make migratecheckpoint
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/migratecheckpoint
-ln -sf migratecheckpoint_linux_amd64 ./bin/migratecheckpoint
-GOOS=linux   GOARCH=arm64 /Library/Developer/CommandLineTools/usr/bin/make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_linux_arm64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_linux_arm64 ./bin/otelcol
-GOOS=linux   GOARCH=arm64 /Library/Developer/CommandLineTools/usr/bin/make translatesfx
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/translatesfx_linux_arm64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/translatesfx
-ln -sf translatesfx_linux_arm64 ./bin/translatesfx
-GOOS=linux   GOARCH=arm64 /Library/Developer/CommandLineTools/usr/bin/make migratecheckpoint
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_linux_arm64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/migratecheckpoint
-ln -sf migratecheckpoint_linux_arm64 ./bin/migratecheckpoint
-GOOS=windows GOARCH=amd64 EXTENSION=.exe /Library/Developer/CommandLineTools/usr/bin/make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_windows_amd64.exe -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_windows_amd64.exe ./bin/otelcol
-GOOS=windows GOARCH=amd64 EXTENSION=.exe /Library/Developer/CommandLineTools/usr/bin/make translatesfx
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/translatesfx_windows_amd64.exe -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/translatesfx
-ln -sf translatesfx_windows_amd64.exe ./bin/translatesfx
-GOOS=windows GOARCH=amd64 EXTENSION=.exe /Library/Developer/CommandLineTools/usr/bin/make migratecheckpoint
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_windows_amd64.exe -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/migratecheckpoint
-ln -sf migratecheckpoint_windows_amd64.exe ./bin/migratecheckpoint
+$ make binaries-all-sys                                                                                                                                                                                                  
 ```
+
+### Inspect builds
 
 After the build process is done, you will find the binary builds in the `bin/` directory.
 
 ```
-$ ls -alh bin                                                                                                                                                                                                           total 1397312
+$ ls -alh bin
+```
+
+Output:
+
+```                                                                                                                                                                                                           total 1397312
 drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
 drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
 lrwxr-xr-x   1 mhite  staff    29B Jun 22 14:12 migratecheckpoint -> migratecheckpoint_linux_amd64
@@ -459,56 +377,23 @@ The `Makefile` also provides capabilities to generate rpm packages for installat
 
 ```
 $ make rpm-package
-/Library/Developer/CommandLineTools/usr/bin/make binaries-linux_amd64
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_linux_amd64 ./bin/otelcol
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make translatesfx
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/translatesfx_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/translatesfx
-ln -sf translatesfx_linux_amd64 ./bin/translatesfx
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make migratecheckpoint
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/migratecheckpoint
-ln -sf migratecheckpoint_linux_amd64 ./bin/migratecheckpoint
-docker build -t otelcol-fpm internal/buildscripts/packaging/fpm
-STEP 1/10: FROM debian:10
-STEP 2/10: VOLUME /repo
-...
-+ rpm -qpli '/repo/dist//splunk-otel-collector-0.53.1~4-g5729a1e*.x86_64.rpm'
 ```
 
 Similarly, the same can be done for a .deb package for use on an Ubuntu or other Debian-based distribution.
 
 ```
 $ make deb-package
-/Library/Developer/CommandLineTools/usr/bin/make binaries-linux_amd64
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make otelcol
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/otelcol_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/otelcol
-ln -sf otelcol_linux_amd64 ./bin/otelcol
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make translatesfx
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/translatesfx_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/translatesfx
-ln -sf translatesfx_linux_amd64 ./bin/translatesfx
-GOOS=linux   GOARCH=amd64 /Library/Developer/CommandLineTools/usr/bin/make migratecheckpoint
-go generate ./...
-GO111MODULE=on CGO_ENABLED=0 go build -o ./bin/migratecheckpoint_linux_amd64 -ldflags "-X github.com/signalfx/splunk-otel-collector/internal/version.Version=v0.53.1-4-g5729a1e -X go.opentelemetry.io/collector/internal/version.Version=v0.53.1-4-g5729a1e" ./cmd/migratecheckpoint
-ln -sf migratecheckpoint_linux_amd64 ./bin/migratecheckpoint
-docker build -t otelcol-fpm internal/buildscripts/packaging/fpm
-STEP 1/10: FROM debian:10
-STEP 2/10: VOLUME /repo
---> Using cache 6358c550dcce0e555be8196cb66b12a7e252ca9e101a1f797324e429dad7bc07
---> 6358c550dcc
-...
-
 ```
 
 After the build process for the deb or rpm build is complete, you will find the package artifact in the `dist/` directory.
 
 ```
-$ ls -al dist                                                                                                                                                                                                           total 918320
+$ ls -al dist
+```
+
+Output:
+
+```                                                                                                                                                                                                           total 918320
 drwx------@  4 mhite  staff        128 Jun 22 14:13 .
 drwxr-xr-x  26 mhite  staff        832 Jun 22 14:12 ..
 -rw-------@  1 mhite  staff  226006452 Jun 22 14:09 splunk-otel-collector-0.53.1~4_g5729a1e-1.x86_64.rpm
