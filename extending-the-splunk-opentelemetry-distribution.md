@@ -140,7 +140,7 @@ $ export SINK_SERVICE_ACCOUNT=`gcloud logging sinks describe ${SINK_NAME} --form
 Next, grant the log writer service account identity permission to publish to the topic.
 
 ```
-gcloud pubsub topics add-iam-policy-binding ${PUBSUB_TOPIC} \
+$ gcloud pubsub topics add-iam-policy-binding ${PUBSUB_TOPIC} \
  --member="${SINK_SERVICE_ACCOUNT}" --role="roles/pubsub.publisher"
 ```
 
