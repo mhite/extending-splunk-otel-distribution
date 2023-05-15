@@ -10,7 +10,7 @@ In this article, I will demonstrate such an experiment by extending the Splunk O
 - Exporting a JSON service account key for use with the OpenTelemetry Pub/Sub receiver
 - Creating a Splunk index for Google Cloud log messages
 - Creating a HEC token for use with the OpenTelemetry HEC exporter
-- Customizing the Splunk OpenTelemetry source code to include support for the `googlecloudpubsubreceiver` and `logstransformprocessor` components
+- Customizing the Splunk OpenTelemetry source code to include support for the `googlecloudpubsubreceiver` component
 - Compiling and building a custom OpenTelemetry agent binary
 - Building a rpm or deb package of the Splunk OpenTelemetry distribution
 - Configuring the agent to receive Google Cloud log messages via Pub/Sub and deliver them to Splunk as HEC messages
@@ -32,7 +32,7 @@ In this article, I will demonstrate such an experiment by extending the Splunk O
 
 ### Google Cloud
 
-The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation. It is highly recommended that you create a dedicated Google Cloud project for the purposes of this exercise. For example, to create and new project titled "oteltest" and switch configuration contexts to this new project, issue the following commands:
+The following steps cover Google Cloud setup. Please ensure these commands are run within the context of a non-production project that is safe to use for experimentation. It is highly recommended that you create a dedicated Google Cloud project for the purposes of this exercise. For example, to create a new project titled "oteltest" and switch configuration contexts to this new project, issue the following commands:
 
 ```
 $ gcloud projects create oteltest
@@ -44,7 +44,7 @@ $ gcloud config set project oteltest
 
 #### Export variables
 
-Create or identify an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable. Ensure this variable is set to the `projectId` as listed in the output `gcloud projects list --format=flattened`. For example:
+Create or identify an existing Google Cloud project which can be used for this experiment. Export its name into an environment variable. Ensure this variable is set to the `projectId` as listed in the output from `gcloud projects list --format=flattened`. For example:
 
 ```
 $ gcloud projects list --format=flattened
@@ -52,10 +52,10 @@ $ gcloud projects list --format=flattened
 createTime:     2022-06-30T21:56:08.101Z
 lifecycleState: ACTIVE
 name:           oteltest
-parent.id:      560850384093
+parent.id:      <REDACTED>
 parent.type:    organization
 projectId:      oteltest
-projectNumber:  71306234863
+projectNumber:  <REDACTED>
 ---
 ...
 ```
@@ -90,6 +90,8 @@ $ gcloud iam service-accounts create ${SERVICE_ACCOUNT_SHORT}
 $ gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_FILENAME} \
 --iam-account=${SERVICE_ACCOUNT_FULL}
 ```
+
+Download this key to your development environment.
 
 #### Enable Pub/Sub API
 
@@ -129,7 +131,6 @@ pubsub.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}/topics/${PUBSUB_TOPIC} \
 ```
 
 #### Allow sink writer permission to topic
-
 
 First, determine the identity of the log sink writer.
 
@@ -195,10 +196,9 @@ $ export SPLUNK_HEC_TOKEN=<token>
 The basic steps for preparing the source code are as follows:
 
 - Clone the Splunk OpenTelemetry distribution from Github
-- Add new components to the import in `internal/components/components.go`
-- Add new components to `Get` function in `internal/components/components.go`
-- Update tests by adding components to `TestDefaultComponents` function in `internal/components/components_test.go`
-
+- Add new component to the import in `internal/components/components.go`
+- Add new component to `Get` function in `internal/components/components.go`
+- Update tests by adding component to `TestDefaultComponents` function in `internal/components/components_test.go`
 
 ### Clone the Splunk OpenTelemetry Distribution
 
@@ -220,7 +220,7 @@ $ make install-tools
 
 ### Edit source
 
-Because the `googlecloudpubsubreceiver` receiver and the `logstransform` processor are not enabled by default with the Splunk distribution, I will need to enable the components in the source code and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes made along with screenshots highlighting the necessary changes.
+Because the `googlecloudpubsubreceiver` receiver is not enabled by default in the Splunk distribution, you will need to enable the component and create a custom build based upon these changes. I've provided `diff` examples below to illustrate the changes.
 
 #### `internal/components/components.go`
 
@@ -228,54 +228,26 @@ The following is a diff demonstrating the changes made to `internal/components/c
 
 ```
 diff --git a/internal/components/components.go b/internal/components/components.go
-index 398ba46..40ab407 100644
+index e300e577..e0e0be92 100644
 --- a/internal/components/components.go
 +++ b/internal/components/components.go
-@@ -34,6 +34,7 @@ import (
-        "github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor"
-        "github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbyattrsprocessor"
-        "github.com/open-telemetry/opentelemetry-collector-contrib/processor/k8sattributesprocessor"
-+       "github.com/open-telemetry/opentelemetry-collector-contrib/processor/logstransformprocessor"
-        "github.com/open-telemetry/opentelemetry-collector-contrib/processor/metricstransformprocessor"
-        "github.com/open-telemetry/opentelemetry-collector-contrib/processor/probabilisticsamplerprocessor"
-        "github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor"
-@@ -46,6 +47,7 @@ import (
+@@ -50,6 +50,7 @@ import (
         "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/collectdreceiver"
         "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver"
         "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver"
 +       "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver"
         "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver"
         "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/jaegerreceiver"
-        "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/journaldreceiver"
-@@ -112,6 +114,7 @@ func Get() (component.Factories, error) {
+        "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/jmxreceiver"
+@@ -137,6 +138,7 @@ func Get() (otelcol.Factories, error) {
+                discoveryreceiver.NewFactory(),
                 fluentforwardreceiver.NewFactory(),
                 filelogreceiver.NewFactory(),
-                hostmetricsreceiver.NewFactory(),
 +               googlecloudpubsubreceiver.NewFactory(),
+                hostmetricsreceiver.NewFactory(),
                 jaegerreceiver.NewFactory(),
-                journaldreceiver.NewFactory(),
-                k8sclusterreceiver.NewFactory(),
-@@ -160,6 +163,7 @@ func Get() (component.Factories, error) {
-                filterprocessor.NewFactory(),
-                groupbyattrsprocessor.NewFactory(),
-                k8sattributesprocessor.NewFactory(),
-+               logstransformprocessor.NewFactory(),
-                memorylimiterprocessor.NewFactory(),
-                metricstransformprocessor.NewFactory(),
-                probabilisticsamplerprocessor.NewFactory(),
+                jmxreceiver.NewFactory(),
 ```
-
-Add the `logstransformprocessor` and `googlecloudpubsubreceiver` imports to `internal/components/components.go` as highlighted in the screenshot below.
-
-![internal/components/components.go import changes](./images/components-import.png)
-
-In the same file, within the `Get` function, add `googlecloudpubsubreceiver.NewFactory()` to the `receivers` variable declaration as seen in the screenshot below.
-
-![internal/components/components.go Get receiver variable changes](./images/components-receivers.png)
-
-Similarly, within the `Get` function, add `logstransformprocessor.NewFactory()` to the `processors` variable declaration as seen in the screenshot below.
-
-![internal/components/components.go Get receiver variable changes](./images/components-processors.png)
 
 #### `internal/components/components_test.go`
 
@@ -283,49 +255,28 @@ The following is a diff demonstrating the changes made to `internal/components/c
 
 ```
 diff --git a/internal/components/components_test.go b/internal/components/components_test.go
-index c7ee470..df10571 100644
+index 88d44765..380e1ad6 100644
 --- a/internal/components/components_test.go
 +++ b/internal/components/components_test.go
-@@ -46,6 +46,7 @@ func TestDefaultComponents(t *testing.T) {
-                "databricks",
+@@ -48,6 +48,7 @@ func TestDefaultComponents(t *testing.T) {
+                "discovery",
                 "filelog",
                 "fluentforward",
 +               "googlecloudpubsubreceiver",
                 "hostmetrics",
                 "jaeger",
-                "journald",
-@@ -75,6 +76,7 @@ func TestDefaultComponents(t *testing.T) {
-                "filter",
-                "groupbyattrs",
-                "k8sattributes",
-+               "logstransformprocessor",
-                "memory_limiter",
-                "metricstransform",
-                "probabilistic_sampler",
+                "jmx",
 ```
-
-Within the `TestDefaultComponents` function in `internal/components/components_test.go`, add `googlecloudpubsubreceiver` to the `expectedReceivers` variable declaration as seen in the screenshot below.
-
-![internal/components/components_test.go TestDefaultComponents expectedReceivers variable changes](./images/components-test-expected-receivers.png)
-
-Similarly, within the `TestDefaultComponents` function in `internal/components/components_test.go`, add `logstransformprocessor` to the `expectedProcessors` variable declaration as seen in the screenshot below.
-
-![internal/components/components_test.go TestDefaultComponents expectedProcessors variable changes](./images/components-test-expected-processors.png)
 
 ### Get dependencies
 
-Before compiling, retrieve the new dependencies for the `googlecloudpubsubreceiver` and `logstransformprocessor` components.
+Before compiling, retrieve the new dependencies for the `googlecloudpubsubreceiver` component.
 
 ```
 $ go get github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver
 ```
 
-```
-$ go get github.com/open-telemetry/opentelemetry-collector-contrib/processor/logstransformprocessor
-```
-
 ### Make binary
-
 
 Now that the necessary changes have been made to the source code and the dependencies retrieved, it's time to build new binaries. The `Makefile` included with the project makes this extremely easy. To build for the local operating system and platform, simply run `make otelcol` as shown below.
 
@@ -335,7 +286,7 @@ $ make otelcol
 
 ### All platform binaries [Optional]
 
-And since Go also supports cross compilation, you can generate binaries for target platforms other than the one you are building on. For example, you can easily generate a Linux x86 binary from a Darwin x86 machine.
+Because Go also supports cross compilation, you can generate binaries for target platforms other than the one you are building on. For example, you can easily generate a Linux x86 binary from a Darwin x86 machine.
 
 ```
 $ make binaries-all-sys
@@ -351,24 +302,28 @@ $ ls -alh bin
 
 Output:
 
-```                                                                                             total 1397312
-drwxr-xr-x  17 mhite  staff   544B Jun 22 14:12 .
-drwxr-xr-x  26 mhite  staff   832B Jun 22 14:12 ..
-lrwxr-xr-x   1 mhite  staff    29B Jun 22 14:12 migratecheckpoint -> migratecheckpoint_linux_amd64
--rwxr-xr-x   1 mhite  staff   2.9M Jun 22 13:12 migratecheckpoint_darwin_amd64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 14:12 migratecheckpoint_linux_amd64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:17 migratecheckpoint_linux_arm64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:19 migratecheckpoint_windows_amd64.exe
-lrwxr-xr-x   1 mhite  staff    19B Jun 22 14:12 otelcol -> otelcol_linux_amd64
--rwxr-xr-x   1 mhite  staff   164M Jun 22 13:12 otelcol_darwin_amd64
--rwxr-xr-x   1 mhite  staff   166M Jun 22 14:12 otelcol_linux_amd64
--rwxr-xr-x   1 mhite  staff   162M Jun 22 13:17 otelcol_linux_arm64
--rwxr-xr-x   1 mhite  staff   166M Jun 22 13:19 otelcol_windows_amd64.exe
-lrwxr-xr-x   1 mhite  staff    24B Jun 22 14:12 translatesfx -> translatesfx_linux_amd64
--rwxr-xr-x   1 mhite  staff   3.0M Jun 22 13:12 translatesfx_darwin_amd64
--rwxr-xr-x   1 mhite  staff   3.1M Jun 22 14:12 translatesfx_linux_amd64
--rwxr-xr-x   1 mhite  staff   3.1M Jun 22 13:17 translatesfx_linux_arm64
--rwxr-xr-x   1 mhite  staff   3.2M Jun 22 13:19 translatesfx_windows_amd64.exe
+```
+drwxr-xr-x  21 mhite  staff   672B May 15 15:13 ./
+drwxr-xr-x  31 mhite  staff   992B May 15 15:09 ../
+lrwxr-xr-x   1 mhite  staff    31B May 15 15:13 migratecheckpoint@ -> migratecheckpoint_linux_ppc64le
+-rwxr-xr-x   1 mhite  staff   3.0M May 15 15:11 migratecheckpoint_darwin_amd64*
+-rwxr-xr-x   1 mhite  staff   3.1M May 15 15:11 migratecheckpoint_linux_amd64*
+-rwxr-xr-x   1 mhite  staff   3.1M May 15 15:12 migratecheckpoint_linux_arm64*
+-rwxr-xr-x   1 mhite  staff   3.1M May 15 15:13 migratecheckpoint_linux_ppc64le*
+-rwxr-xr-x   1 mhite  staff   3.5M May 15 15:13 migratecheckpoint_windows_amd64.exe*
+lrwxr-xr-x   1 mhite  staff    21B May 15 15:13 otelcol@ -> otelcol_linux_ppc64le
+-rwxr-xr-x   1 mhite  staff   202M May 15 15:11 otelcol_darwin_amd64*
+-rwxr-xr-x   1 mhite  staff   201M May 15 15:09 otelcol_darwin_arm64*
+-rwxr-xr-x   1 mhite  staff   204M May 15 15:11 otelcol_linux_amd64*
+-rwxr-xr-x   1 mhite  staff   197M May 15 15:12 otelcol_linux_arm64*
+-rwxr-xr-x   1 mhite  staff   201M May 15 15:13 otelcol_linux_ppc64le*
+-rwxr-xr-x   1 mhite  staff   204M May 15 15:13 otelcol_windows_amd64.exe*
+lrwxr-xr-x   1 mhite  staff    26B May 15 15:13 translatesfx@ -> translatesfx_linux_ppc64le
+-rwxr-xr-x   1 mhite  staff   3.2M May 15 15:11 translatesfx_darwin_amd64*
+-rwxr-xr-x   1 mhite  staff   3.2M May 15 15:11 translatesfx_linux_amd64*
+-rwxr-xr-x   1 mhite  staff   3.2M May 15 15:12 translatesfx_linux_arm64*
+-rwxr-xr-x   1 mhite  staff   3.3M May 15 15:13 translatesfx_linux_ppc64le*
+-rwxr-xr-x   1 mhite  staff   3.3M May 15 15:13 translatesfx_windows_amd64.exe*
 ```
 
 ### Build operating system packages [Optional]
@@ -393,7 +348,7 @@ $ ls -al dist
 
 Output:
 
-```                                                                                             total 918320
+```
 drwx------@  4 mhite  staff        128 Jun 22 14:13 .
 drwxr-xr-x  26 mhite  staff        832 Jun 22 14:12 ..
 -rw-------@  1 mhite  staff  226006452 Jun 22 14:09 splunk-otel-collector-0.53.1~4_g5729a1e-1.x86_64.rpm
@@ -402,7 +357,7 @@ drwxr-xr-x  26 mhite  staff        832 Jun 22 14:12 ..
 
 ## Configure
 
-Next, let's create a configuration file which exercises the new components. Our configuration will handle the following tasks:
+Next, let's create a configuration file which exercises the new Pub/Sub component. Our configuration will handle the following tasks:
 
 - Using the `batch` processor, log messages are batched into 10 second windows.
 - Using the `resourcedetection` processor, the agent hostname is detected. Messages delivered to HEC via this agent will have their `host` metadata attribute set to the local hostname of the agent machine.
@@ -412,7 +367,6 @@ Next, let's create a configuration file which exercises the new components. Our 
 - Finally, a log pipeline is constructed using the aforementioned components.
 
 Save the following configuration file using the name `pubsub-otel.yaml`:
-
 
 ```
 processors:
@@ -513,51 +467,37 @@ The `GOOGLE_CLOUD_PROJECT` and `PUBSUB_SUB` environment variables should already
 Launch your newly compiled agent, making sure to point to the correct platform binary, using the following command:
 
 ```
-$ ./bin/otelcol_darwin_amd64 --config=./pubsub-otel.yaml
+$ ./bin/otelcol_darwin_arm64 --config=./pubsub-otel.yaml
 ```
 
 Output should resemble:
 
 ```
-2022/06/28 12:42:53 main.go:223: Set config to [./pubsub-otel.yaml]
-2022/06/28 12:42:53 main.go:289: Set ballast to 168 MiB
-2022/06/28 12:42:53 main.go:303: Set memory limit to 460 MiB
-2022-06-28T12:42:53.207-0700	warn	splunkhecexporter@v0.53.0/exporter.go:77	otel_to_hec_fields.name setting is deprecated and will be removed soon.	{"kind": "exporter", "data_type": "logs", "name": "splunk_hec"}
-2022-06-28T12:42:53.217-0700	info	service/telemetry.go:107	Setting up own telemetry...
-2022-06-28T12:42:53.233-0700	info	service/telemetry.go:146	Serving Prometheus metrics	{"address": ":8888", "level": "basic"}
-2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:42	Starting extensions...
-2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "file_storage"}
-2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "file_storage"}
-2022-06-28T12:42:53.233-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "pprof"}
-2022-06-28T12:42:53.233-0700	info	pprofextension@v0.53.0/pprofextension.go:71	Starting net/http/pprof server	{"config": {"TCPAddr":{"Endpoint":":1888"},"BlockProfileFraction":0,"MutexProfileFraction":0,"SaveToFile":""}}
-2022-06-28T12:42:53.235-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "pprof"}
-2022-06-28T12:42:53.235-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "zpages"}
-2022-06-28T12:42:53.235-0700	info	zpagesextension/zpagesextension.go:64	Registered zPages span processor on tracer provider
-2022-06-28T12:42:53.236-0700	info	zpagesextension/zpagesextension.go:74	Registered Host's zPages
-2022-06-28T12:42:53.237-0700	info	zpagesextension/zpagesextension.go:86	Starting zPages extension	{"config": {"TCPAddr":{"Endpoint":"localhost:55679"}}}
-2022-06-28T12:42:53.237-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "zpages"}
-2022-06-28T12:42:53.237-0700	info	extensions/extensions.go:45	Extension is starting...	{"kind": "extension", "name": "health_check"}
-2022-06-28T12:42:53.237-0700	info	healthcheckextension@v0.53.0/healthcheckextension.go:44	Starting health_check extension	{"config": {"Port":0,"TCPAddr":{"Endpoint":"0.0.0.0:13133"},"Path":"/","CheckCollectorPipeline":{"Enabled":false,"Interval":"5m","ExporterFailureThreshold":5}}}
-2022-06-28T12:42:53.237-0700	info	extensions/extensions.go:49	Extension started.	{"kind": "extension", "name": "health_check"}
-2022-06-28T12:42:53.237-0700	info	pipelines/pipelines.go:74	Starting exporters...
-2022-06-28T12:42:53.237-0700	info	pipelines/pipelines.go:78	Exporter is starting...	{"kind": "exporter", "data_type": "logs", "name": "splunk_hec"}
-2022-06-28T12:42:53.241-0700	info	pipelines/pipelines.go:82	Exporter started.	{"kind": "exporter", "data_type": "logs", "name": "splunk_hec"}
-2022-06-28T12:42:53.241-0700	info	pipelines/pipelines.go:86	Starting processors...
-2022-06-28T12:42:53.241-0700	info	pipelines/pipelines.go:90	Processor is starting...	{"kind": "processor", "name": "logstransform", "pipeline": "logs"}
-2022-06-28T12:42:53.249-0700	info	pipelines/pipelines.go:94	Processor started.	{"kind": "processor", "name": "logstransform", "pipeline": "logs"}
-2022-06-28T12:42:53.249-0700	info	pipelines/pipelines.go:90	Processor is starting...	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
-2022-06-28T12:42:53.252-0700	info	internal/resourcedetection.go:136	began detecting resource information	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
-2022-06-28T12:42:53.253-0700	info	internal/resourcedetection.go:150	detected resource information	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs", "resource": {"host.name":"C02CRB54MD6M","os.type":"darwin"}}
-2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:94	Processor started.	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
-2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:90	Processor is starting...	{"kind": "processor", "name": "batch", "pipeline": "logs"}
-2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:94	Processor started.	{"kind": "processor", "name": "batch", "pipeline": "logs"}
-2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:98	Starting receivers...
-2022-06-28T12:42:53.254-0700	info	pipelines/pipelines.go:102	Exporter is starting...	{"kind": "receiver", "name": "googlecloudpubsub", "pipeline": "logs"}
-2022-06-28T12:42:53.514-0700	info	pipelines/pipelines.go:106	Exporter started.	{"kind": "receiver", "name": "googlecloudpubsub", "pipeline": "logs"}
-2022-06-28T12:42:53.514-0700	info	healthcheck/handler.go:129	Health Check state change	{"status": "ready"}
-2022-06-28T12:42:53.514-0700	info	service/collector.go:220	Starting otelcol...	{"Version": "v0.53.1-4-g5729a1e", "NumCPU": 12}
-2022-06-28T12:42:53.514-0700	info	service/collector.go:128	Everything is ready. Begin running and processing data.
-2022-06-28T12:42:53.514-0700	info	internal/handler.go:117	Starting Streaming Pull	{"kind": "receiver", "name": "googlecloudpubsub", "pipeline": "logs"}
+2023/05/15 15:39:15 settings.go:332: Set config to [./pubsub-otel.yaml]
+2023/05/15 15:39:15 settings.go:385: Set ballast to 168 MiB
+2023/05/15 15:39:15 settings.go:401: Set memory limit to 460 MiB
+2023-05-15T15:39:15.632-0700	info	service/telemetry.go:113	Setting up own telemetry...
+2023-05-15T15:39:15.632-0700	info	service/telemetry.go:136	Serving Prometheus metrics	{"address": ":8888", "level": "Basic"}
+2023-05-15T15:39:15.632-0700	info	processor/processor.go:300	Development component. May change in the future.	{"kind": "processor", "name": "logstransform", "pipeline": "logs"}
+2023-05-15T15:39:15.632-0700	info	service/service.go:141	Starting otelcol...	{"Version": "v0.76.1-50-gb57c7279", "NumCPU": 10}
+2023-05-15T15:39:15.632-0700	info	extensions/extensions.go:41	Starting extensions...
+2023-05-15T15:39:15.632-0700	info	extensions/extensions.go:44	Extension is starting...	{"kind": "extension", "name": "pprof"}
+2023-05-15T15:39:15.632-0700	info	pprofextension@v0.77.0/pprofextension.go:71	Starting net/http/pprof server	{"kind": "extension", "name": "pprof", "config": {"TCPAddr":{"Endpoint":":1888"},"BlockProfileFraction":0,"MutexProfileFraction":0,"SaveToFile":""}}
+2023-05-15T15:39:15.632-0700	info	extensions/extensions.go:48	Extension started.	{"kind": "extension", "name": "pprof"}
+2023-05-15T15:39:15.632-0700	info	extensions/extensions.go:44	Extension is starting...	{"kind": "extension", "name": "zpages"}
+2023-05-15T15:39:15.632-0700	info	zpagesextension@v0.77.0/zpagesextension.go:64	Registered zPages span processor on tracer provider	{"kind": "extension", "name": "zpages"}
+2023-05-15T15:39:15.632-0700	info	zpagesextension@v0.77.0/zpagesextension.go:74	Registered Host's zPages	{"kind": "extension", "name": "zpages"}
+2023-05-15T15:39:15.632-0700	info	zpagesextension@v0.77.0/zpagesextension.go:86	Starting zPages extension	{"kind": "extension", "name": "zpages", "config": {"TCPAddr":{"Endpoint":"localhost:55679"}}}
+2023-05-15T15:39:15.632-0700	info	extensions/extensions.go:48	Extension started.	{"kind": "extension", "name": "zpages"}
+2023-05-15T15:39:15.632-0700	info	extensions/extensions.go:44	Extension is starting...	{"kind": "extension", "name": "health_check"}
+2023-05-15T15:39:15.632-0700	info	healthcheckextension@v0.77.0/healthcheckextension.go:45	Starting health_check extension	{"kind": "extension", "name": "health_check", "config": {"Endpoint":"0.0.0.0:13133","TLSSetting":null,"CORS":null,"Auth":null,"MaxRequestBodySize":0,"IncludeMetadata":false,"Path":"/","ResponseBody":null,"CheckCollectorPipeline":{"Enabled":false,"Interval":"5m","ExporterFailureThreshold":5}}}
+2023-05-15T15:39:15.633-0700	warn	internal/warning.go:51	Using the 0.0.0.0 address exposes this server to every network interface, which may facilitate Denial of Service attacks	{"kind": "extension", "name": "health_check", "documentation": "https://github.com/open-telemetry/opentelemetry-collector/blob/main/docs/security-best-practices.md#safeguards-against-denial-of-service-attacks"}
+2023-05-15T15:39:15.633-0700	info	extensions/extensions.go:48	Extension started.	{"kind": "extension", "name": "health_check"}
+2023-05-15T15:39:15.633-0700	info	internal/resourcedetection.go:136	began detecting resource information	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs"}
+2023-05-15T15:39:15.645-0700	info	internal/resourcedetection.go:150	detected resource information	{"kind": "processor", "name": "resourcedetection", "pipeline": "logs", "resource": {"host.id":"BCB8A4F5-B5B2-5132-AB53-1320A7635FCE","host.name":"mattirl-en0.int.beatmixed.net","os.type":"darwin"}}
+2023-05-15T15:39:15.730-0700	info	healthcheck/handler.go:129	Health Check state change	{"kind": "extension", "name": "health_check", "status": "ready"}
+2023-05-15T15:39:15.730-0700	info	service/service.go:158	Everything is ready. Begin running and processing data.
+2023-05-15T15:39:15.730-0700	info	internal/handler.go:117	Starting Streaming Pull	{"kind": "receiver", "name": "googlecloudpubsub", "data_type": "logs"}
 ```
 
 ### Generate and verify delivery of a log message
@@ -575,7 +515,6 @@ index="oteltest" data.textPayload="Test message"
 ```
 
 Ensure that you have selected an appropriately constrained time selection within the Splunk time picker.
-
 
 ## Cleanup
 
@@ -611,7 +550,7 @@ $ gcloud iam service-accounts delete ${SERVICE_ACCOUNT_FULL}
 
 ### Splunk
 
-Delete the following Splunk resources created during this experiment, too.
+Delete the following Splunk resources created during this experiment.
 
 #### Delete Splunk HEC token
 
